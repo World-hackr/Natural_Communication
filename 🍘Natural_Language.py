@@ -1,4 +1,5 @@
 import os
+import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
@@ -25,6 +26,9 @@ class IntegratedWaveformTool:
         self.output_folder = f"future_{self.base_name}"
         os.makedirs(self.output_folder, exist_ok=True)
 
+        # Move the original audio file to the new folder
+        shutil.move(self.audio_file, os.path.join(self.output_folder, os.path.basename(self.audio_file)))
+        
         # Set up the plot
         self.fig, self.ax = plt.subplots()
         self.line_pos, = self.ax.plot([], [], color='blue')
