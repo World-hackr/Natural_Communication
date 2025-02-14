@@ -11,9 +11,13 @@ class IntegratedWaveformTool:
         self.audio_data = self.audio_data / np.max(np.abs(self.audio_data))
         self.num_samples = len(self.audio_data)
         self.max_amplitude = np.max(np.abs(self.audio_data))
-        
+
         # Extract filename without extension
         self.base_name = os.path.splitext(os.path.basename(audio_file))[0]  # e.g., "audio" from "path/audio.wav"
+
+        # Create a new folder to store outputs
+        self.output_folder = f"future_{self.base_name}"
+        os.makedirs(self.output_folder, exist_ok=True)
 
         # Set up the plot
         self.fig, self.ax = plt.subplots()
@@ -61,12 +65,12 @@ class IntegratedWaveformTool:
             self.fig.canvas.draw()
 
     def save_drawing(self):
-        output_png = f"future_{self.base_name}.png"
+        output_png = os.path.join(self.output_folder, f"future_{self.base_name}.png")
         self.fig.savefig(output_png)
         print(f"Saved drawing as {output_png}")
 
     def save_to_csv(self):
-        output_csv = f"future_{self.base_name}.csv"
+        output_csv = os.path.join(self.output_folder, f"future_{self.base_name}.csv")
         with open(output_csv, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['Index', 'Positive Amplitude', 'Negative Amplitude'])
@@ -86,8 +90,8 @@ class IntegratedWaveformTool:
             else:
                 adjusted_audio_data[i] = self.audio_data[i]
 
-        # Create output WAV filename
-        output_wav = f"future_{self.base_name}.wav"
+        # Create output WAV filename inside new folder
+        output_wav = os.path.join(self.output_folder, f"future_{self.base_name}.wav")
         
         # Save modified waveform
         wavfile.write(output_wav, self.sample_rate, (adjusted_audio_data * 32767).astype(np.int16))
