@@ -7,9 +7,9 @@ Do not mind the Steps, 🍘unless you want to know how i came up with the idea f
 Run code.
 input a audio file
 Get a drawing canvas (graphical matplotlib ) window pop-up .
-CSV file with all the peaks(+ve/-ve) of each wave will also be created.
-Draw your shape, both in positive and negative region.
-Close the graph window.
-A plot window with original and modeled wave will be shown.
-An audio file with it’s wave modeled in desire shape but with same frequency  data will be geneated on file name : 🍘   Natural_Language.py.
+draw your desired shape on teh canvas.
+close the canvas window
+now plot with original and future_original plot will open.
+close the plot window
+enjoy your new created file with .csv, .png, .wav file.
 >>>>>>> 37916aa (update README with instructions to use the code)
