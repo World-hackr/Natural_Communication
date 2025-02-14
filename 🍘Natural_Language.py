@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
@@ -5,12 +6,15 @@ import csv
 
 class IntegratedWaveformTool:
     def __init__(self, audio_file):
-        # Read the audio file
+        self.audio_file = audio_file
         self.sample_rate, self.audio_data = wavfile.read(audio_file)
         self.audio_data = self.audio_data / np.max(np.abs(self.audio_data))
         self.num_samples = len(self.audio_data)
         self.max_amplitude = np.max(np.abs(self.audio_data))
         
+        # Extract filename without extension
+        self.base_name = os.path.splitext(os.path.basename(audio_file))[0]  # e.g., "audio" from "path/audio.wav"
+
         # Set up the plot
         self.fig, self.ax = plt.subplots()
         self.line_pos, = self.ax.plot([], [], color='blue')
@@ -19,11 +23,11 @@ class IntegratedWaveformTool:
         self.cid_motion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_hover)
         self.cid_release = self.fig.canvas.mpl_connect('button_release_event', self.on_release)
         self.ax.set_ylim(-self.max_amplitude, self.max_amplitude)
-        self.ax.set_xlim(0, self.num_samples)  # x-axis range based on number of samples
+        self.ax.set_xlim(0, self.num_samples)
         self.is_drawing = False
-        self.drawing_pos = np.zeros(self.num_samples)  # Blank canvas for positive area
-        self.drawing_neg = np.zeros(self.num_samples)  # Blank canvas for negative area
-        self.prev_idx = None  # To store the previous index for continuous line
+        self.drawing_pos = np.zeros(self.num_samples)
+        self.drawing_neg = np.zeros(self.num_samples)
+        self.prev_idx = None  
 
     def on_click(self, event):
         if event.inaxes != self.ax:
@@ -45,33 +49,35 @@ class IntegratedWaveformTool:
         if 0 <= idx < len(self.drawing_pos):
             if event.ydata > 0:
                 if self.prev_idx is not None:
-                    # Create a continuous line between the previous point and the current point
                     self.drawing_pos[self.prev_idx:idx + 1] = np.linspace(self.drawing_pos[self.prev_idx], event.ydata, idx - self.prev_idx + 1)
                 self.drawing_pos[idx] = event.ydata
                 self.line_pos.set_data(np.arange(len(self.drawing_pos)), self.drawing_pos)
             elif event.ydata < 0:
                 if self.prev_idx is not None:
-                    # Create a continuous line between the previous point and the current point
                     self.drawing_neg[self.prev_idx:idx + 1] = np.linspace(self.drawing_neg[self.prev_idx], event.ydata, idx - self.prev_idx + 1)
                 self.drawing_neg[idx] = event.ydata
                 self.line_neg.set_data(np.arange(len(self.drawing_neg)), self.drawing_neg)
             self.prev_idx = idx
             self.fig.canvas.draw()
 
-    def save_drawing(self, output_file):
-        self.fig.savefig(output_file)
+    def save_drawing(self):
+        output_png = f"future_{self.base_name}.png"
+        self.fig.savefig(output_png)
+        print(f"Saved drawing as {output_png}")
 
-    def save_to_csv(self, csv_file):
-        with open(csv_file, mode='w', newline='') as file:
+    def save_to_csv(self):
+        output_csv = f"future_{self.base_name}.csv"
+        with open(output_csv, mode='w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(['Index', 'Positive Amplitude', 'Negative Amplitude'])
             for i in range(self.num_samples):
                 writer.writerow([i, self.drawing_pos[i], self.drawing_neg[i]])
+        print(f"Saved CSV as {output_csv}")
 
     def apply_drawing_to_waveform(self):
-        csv_file = 'drawing_output.csv'
-        self.save_to_csv(csv_file)
+        self.save_to_csv()
         adjusted_audio_data = np.zeros_like(self.audio_data)
+
         for i in range(len(self.audio_data)):
             if self.audio_data[i] > 0:
                 adjusted_audio_data[i] = self.drawing_pos[i]
@@ -79,10 +85,15 @@ class IntegratedWaveformTool:
                 adjusted_audio_data[i] = self.drawing_neg[i]
             else:
                 adjusted_audio_data[i] = self.audio_data[i]
-        output_file = 'CREATER_OUTPUT.wav'
-        wavfile.write(output_file, self.sample_rate, (adjusted_audio_data * 32767).astype(np.int16))
+
+        # Create output WAV filename
+        output_wav = f"future_{self.base_name}.wav"
         
-        # Plot the original and adjusted audio waveforms
+        # Save modified waveform
+        wavfile.write(output_wav, self.sample_rate, (adjusted_audio_data * 32767).astype(np.int16))
+        print(f"Saved adjusted audio as {output_wav}")
+
+        # Plot original vs adjusted waveform
         plt.figure(figsize=(10, 6))
         
         plt.subplot(2, 1, 1)
@@ -99,12 +110,12 @@ class IntegratedWaveformTool:
 # Ask user for the audio file path
 audio_file = input("Enter the path to your audio file: ")
 
-# Create the waveform tool with user input
+# Create the waveform tool
 waveform_tool = IntegratedWaveformTool(audio_file)
 
 # Show the drawing canvas
 plt.show()
 
-# After closing the plot window, save the drawing and apply it to the waveform
-waveform_tool.save_drawing('drawing_output.png')
+# After closing the plot, save outputs
+waveform_tool.save_drawing()
 waveform_tool.apply_drawing_to_waveform()
