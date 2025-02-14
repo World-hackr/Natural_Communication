@@ -79,7 +79,7 @@ class IntegratedWaveformTool:
                 adjusted_audio_data[i] = self.drawing_neg[i]
             else:
                 adjusted_audio_data[i] = self.audio_data[i]
-        output_file = 'output_audio.wav'
+        output_file = 'CREATER_OUTPUT.wav'
         wavfile.write(output_file, self.sample_rate, (adjusted_audio_data * 32767).astype(np.int16))
         
         # Plot the original and adjusted audio waveforms
@@ -96,10 +96,15 @@ class IntegratedWaveformTool:
         plt.tight_layout()
         plt.show()
 
-# Example usage
-waveform_tool = IntegratedWaveformTool('CREATER_MESSAGE.wav')
+# Ask user for the audio file path
+audio_file = input("Enter the path to your audio file: ")
+
+# Create the waveform tool with user input
+waveform_tool = IntegratedWaveformTool(audio_file)
+
 # Show the drawing canvas
 plt.show()
+
 # After closing the plot window, save the drawing and apply it to the waveform
 waveform_tool.save_drawing('drawing_output.png')
 waveform_tool.apply_drawing_to_waveform()
