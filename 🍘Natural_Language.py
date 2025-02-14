@@ -8,12 +8,18 @@ class IntegratedWaveformTool:
     def __init__(self, audio_file):
         self.audio_file = audio_file
         self.sample_rate, self.audio_data = wavfile.read(audio_file)
+
+        # Convert stereo to mono if needed
+        if len(self.audio_data.shape) == 2:  # If stereo (2D array)
+            self.audio_data = np.mean(self.audio_data, axis=1)  # Convert to mono
+        
+        # Normalize waveform
         self.audio_data = self.audio_data / np.max(np.abs(self.audio_data))
         self.num_samples = len(self.audio_data)
         self.max_amplitude = np.max(np.abs(self.audio_data))
 
         # Extract filename without extension
-        self.base_name = os.path.splitext(os.path.basename(audio_file))[0]  # e.g., "audio" from "path/audio.wav"
+        self.base_name = os.path.splitext(os.path.basename(audio_file))[0]
 
         # Create a new folder to store outputs
         self.output_folder = f"future_{self.base_name}"
