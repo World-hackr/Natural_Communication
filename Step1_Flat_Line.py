@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 
 # Read .wav file
-sample_rate, data = wavfile.read('elephant-225994.wav')
+sample_rate, data = wavfile.read('input.wav')
 
 # Ensure data is in mono
 if len(data.shape) > 1:

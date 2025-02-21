@@ -42,6 +42,6 @@ class InteractiveWaveform:
         wavfile.write(output_file, self.sample_rate, (self.audio_data * 32767).astype(np.int16))
 
 # Example usage
-interactive_waveform = InteractiveWaveform('elephant-225994.wav')
+interactive_waveform = InteractiveWaveform('input.wav')
 # After adjusting the waveform, call the save_audio method to save the modified audio
 # interactive_waveform.save_audio('output_audio.wav')

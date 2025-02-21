@@ -69,7 +69,7 @@ class SimpleDrawTool:
                 writer.writerow([i, self.drawing_pos[i], self.drawing_neg[i]])
 
 # Example usage
-draw_tool = SimpleDrawTool('elephant-225994.wav')
+draw_tool = SimpleDrawTool('input.wav')
 # Show the drawing canvas
 plt.show()
 # After closing the plot window, save the drawing and data

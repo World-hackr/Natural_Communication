@@ -59,4 +59,4 @@ class SimpleDrawTool:
             self.fig.canvas.draw()
 
 # Example usage
-SimpleDrawTool('elephant-225994.wav')
+SimpleDrawTool('input.wav')
