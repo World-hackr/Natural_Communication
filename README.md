@@ -1,65 +1,43 @@
-## Main File
-The main code of this project is in **🍘Natural_language.py**.
-Do not mind the Steps, 🍘unless you want to know how i came up with the idea for final code🍘
-
 # Integrated Waveform Tool
 
-An interactive Python tool for custom audio envelope manipulation. This version applies your original per-sample envelope logic (no smoothing) and includes advanced features such as partial redraw, real-time audio preview, undo/reset, a background waveform reference, **and two PNG outputs**:
+## Overview
 
-1. **`future_[filename].png`:** The drawn envelope itself.  
-2. **`comparison_[filename].png`:** A side-by-side plot of the original vs. adjusted waveforms.
+The Integrated Waveform Tool is an interactive Python utility that lets you process audio WAV files by drawing custom envelopes directly onto their waveforms. It normalizes the audio, allows real-time envelope drawing and preview, and then applies the drawn envelope to modify the audio. The tool outputs several files for further analysis and usage.
 
-## Key Features
+## Features
 
-1. **Original Envelope Application (No Smoothing)**  
-   - Each audio sample is modified based on the sign of its **original** amplitude:
-     - **Positive** samples → Use the *blue* (positive) envelope.
-     - **Negative** samples → Use the *red* (negative) envelope.
-     - **Zero** samples remain unchanged.
-   - Ensures an exact, predictable transformation without interpolation or smoothing.
+- **Interactive Envelope Drawing:**  
+  Draw separate envelopes for the positive and negative portions of the waveform using your mouse.
+  
+- **Real-Time Audio Preview:**  
+  Preview the adjusted audio on the fly before saving.
 
-2. **Undo & Reset**  
-   - **`u`**: Reverts the envelope to its state before your last mouse click.  
-   - **`r`**: Resets both the positive and negative envelopes to zero.
+- **Custom Color Selection:**  
+  Choose colors for the drawing background, positive envelope, and negative envelope via a text-based preset palette.
 
-3. **Real-Time Audio Preview**  
-   - **`p`**: Applies the envelope to a temporary array and plays it in real time using [sounddevice](https://pypi.org/project/sounddevice/).  
-   - Allows you to hear changes without leaving the drawing interface.
+- **Multiple Output Files:**  
+  - **Drawn Envelope PNG:** `future_[basename].png` – shows your drawn envelope over the waveform.
+  - **Comparison PNG:** `comparison_[basename].png` – a side-by-side comparison of the original versus adjusted waveforms.
+  - **Modified Waveform PNG:** `modified_wave_[basename].png` – displays only the modified (adjusted) waveform.
+  - **Modified Audio WAV:** `future_[basename].wav` – the audio file with the envelope applied.
+  - **Envelope Data:** CSV and NumPy `.npy` files with the envelope data.
 
-4. **Partial Redraw (Blitting)**  
-   - Improves performance by only redrawing the changed envelope lines as you move the mouse.
+- **Undo and Reset Options:**  
+  Use keyboard shortcuts (`u` for undo and `r` for reset) during the drawing phase.
 
-5. **Background Waveform Reference**  
-   - The original audio waveform is plotted in **light gray**, helping you align your envelope drawing to the natural dynamics of the sound.
+## Dependencies
 
-6. **Stereo→Mono & Normalization**  
-   - Automatically converts stereo files to mono.  
-   - Normalizes the waveform to **[-1, 1]**.
-
-7. **Optional Amplitude Clamping**  
-   - If you find the final audio is “blowing up,” you can uncomment the clamping line in `update_drawing`:
-     ```python
-     # amp = max(-1, min(1, event.ydata))
-     ```
-   - This prevents drawn amplitudes from exceeding **[-1, 1]**.
-
-8. **Two PNG Outputs**  
-   - **`future_[filename].png`:** Saves the final state of the drawing canvas (the envelope lines on top of the background waveform).  
-   - **`comparison_[filename].png`:** Plots the original waveform (blue) and the adjusted waveform (green) in separate subplots for easy visual comparison.
-
-9. **Data & Audio Output**  
-   - **CSV & .npy:** Envelope data is saved as a CSV file and two .npy files (`_pos.npy` & `_neg.npy`) for positive/negative envelopes.  
-   - **WAV File:** The adjusted audio is written to `future_[filename].wav` in the same folder, using 16-bit PCM format.  
-   - **Comparison Plot:** Displayed on-screen and saved as `comparison_[filename].png`.
+- Python 3.x
+- [NumPy](https://numpy.org/)
+- [Matplotlib](https://matplotlib.org/)
+- [SciPy](https://www.scipy.org/) (for WAV file I/O)
+- [SoundDevice](https://python-sounddevice.readthedocs.io/) (for audio preview)
+- (Optional) Standard libraries such as `os`, `shutil`, and `csv`
 
 ## Installation
 
-1. **Python 3.x**  
-2. [NumPy](https://numpy.org/)  
-3. [Matplotlib](https://matplotlib.org/)  
-4. [SciPy](https://www.scipy.org/)  
-5. [sounddevice](https://pypi.org/project/sounddevice/)
+1. **Clone the repository:**
 
-Install dependencies via pip:
-```bash
-pip install numpy matplotlib scipy sounddevice
+   ```bash
+   git clone https://github.com/yourusername/integrated-waveform-tool.git
+   cd integrated-waveform-tool
