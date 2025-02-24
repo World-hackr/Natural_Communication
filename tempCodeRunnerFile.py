@@ -6,56 +6,19 @@ from scipy.io import wavfile
 import csv
 import sounddevice as sd  # For real-time audio preview
 
-# Predefined color options (name, hex code)
-COLOR_PALETTE = [
-    ("Black", "#000000"),
-    ("White", "#FFFFFF"),
-    ("Red", "#FF0000"),
-    ("Green", "#00FF00"),
-    ("Blue", "#0000FF"),
-    ("Yellow", "#FFFF00"),
-    ("Magenta", "#FF00FF"),
-    ("Cyan", "#00FFFF"),
-    ("Orange", "#FFA500"),
-    ("Vibrant Green", "#39FF14"),
-    ("Pink", "#FFC0CB")
-]
-
-def select_color(prompt, default):
-    """
-    Presents a list of colors from which the user can choose.
-    If the user presses Enter without a choice, returns the default.
-    """
-    print(prompt)
-    for i, (name, hexcode) in enumerate(COLOR_PALETTE, start=1):
-        print(f"  {i}. {name} ({hexcode})")
-    choice = input(f"Select a number [default: {default}]: ")
-    if not choice.strip():
-        return default
-    try:
-        idx = int(choice)
-        if 1 <= idx <= len(COLOR_PALETTE):
-            return COLOR_PALETTE[idx-1][1]
-        else:
-            print("Invalid number. Using default.")
-            return default
-    except ValueError:
-        print("Invalid input. Using default.")
-        return default
-
 class IntegratedWaveformTool:
     """
     A tool that:
       - Loads a WAV file (stereo -> mono, normalized).
       - Lets you draw envelopes for positive and negative parts of the waveform separately.
-      - Uses per-sample logic to adjust the waveform.
-      - Offers real-time audio preview, undo/reset, and partial redraw.
-      - Saves three PNG files:
+      - Uses your original per-sample logic (no smoothing).
+      - Offers real-time audio preview, undo/reset, partial redraw, and background waveform.
+      - Optionally clamps drawn amplitudes to [-1,1].
+      - Now saves two PNG files:
           1) The drawn envelope.
           2) A comparison of original vs. adjusted waveforms.
-          3) The modified waveform alone.
     """
-    def __init__(self, audio_file, pos_color="#39FF14", neg_color="#39FF14", bg_color="black"):
+    def __init__(self, audio_file):
         self.audio_file = audio_file
         self.sample_rate, self.audio_data = wavfile.read(audio_file)
 
@@ -76,20 +39,11 @@ class IntegratedWaveformTool:
         # Copy (not move) the original file for safety.
         shutil.copy(self.audio_file, os.path.join(self.output_folder, os.path.basename(self.audio_file)))
 
-        # Save chosen colors.
-        self.pos_color = pos_color
-        self.neg_color = neg_color
-        self.bg_color = bg_color
-
         # Set up figure and axes for drawing.
         self.fig, self.ax = plt.subplots()
-        self.fig.patch.set_facecolor(self.bg_color)
-        self.ax.set_facecolor(self.bg_color)
-        self.ax.set_title("Draw Envelope (Keys: 'r' Reset, 'u' Undo, 'p' Preview)", color="white")
-        self.ax.set_xlabel("Sample Index", color="white")
-        self.ax.set_ylabel("Amplitude", color="white")
-        self.ax.tick_params(axis='x', colors='white')
-        self.ax.tick_params(axis='y', colors='white')
+        self.ax.set_title("Draw Envelope (Keys: 'r' Reset, 'u' Undo, 'p' Preview)")
+        self.ax.set_xlabel("Sample Index")
+        self.ax.set_ylabel("Amplitude")
         self.expected_xlim = (0, self.num_samples)
         self.expected_ylim = (-self.max_amplitude, self.max_amplitude)
         self.ax.set_xlim(*self.expected_xlim)
@@ -99,16 +53,12 @@ class IntegratedWaveformTool:
         # Plot original waveform in gray (background reference).
         self.ax.plot(np.arange(self.num_samples), self.audio_data, color='gray', alpha=0.3, lw=1)
 
-        # Initialize empty envelopes for positive and negative.
+        # Initialize empty envelopes for positive (blue) and negative (red).
         self.drawing_pos = np.zeros(self.num_samples)
         self.drawing_neg = np.zeros(self.num_samples)
-        self.line_pos, = self.ax.plot([], [], color=self.pos_color, lw=2, label='Positive Envelope')
-        self.line_neg, = self.ax.plot([], [], color=self.neg_color, lw=2, label='Negative Envelope')
-        
-        legend = self.ax.legend()
-        for text in legend.get_texts():
-            text.set_color("white")
-        legend.get_frame().set_facecolor(self.bg_color)
+        self.line_pos, = self.ax.plot([], [], color='blue', lw=2, label='Positive Envelope')
+        self.line_neg, = self.ax.plot([], [], color='red',  lw=2, label='Negative Envelope')
+        self.ax.legend()
 
         # Event connections.
         self.cid_click = self.fig.canvas.mpl_connect('button_press_event', self.on_click)
@@ -117,46 +67,60 @@ class IntegratedWaveformTool:
         self.cid_resize = self.fig.canvas.mpl_connect('resize_event', self.on_resize)
         self.cid_key = self.fig.canvas.mpl_connect('key_press_event', self.on_key_press)
 
-        # State variables.
+        # State variables for drawing and undo.
         self.is_drawing = False
         self.prev_idx = None
         self.last_state_pos = None
         self.last_state_neg = None
 
-        # For partial redraw.
+        # For partial redraw (blitting).
         self.background = None
 
     def on_resize(self, event):
+        """When the figure is resized, reset axis limits and clear the cached background."""
         self.ax.set_xlim(*self.expected_xlim)
         self.ax.set_ylim(*self.expected_ylim)
         self.background = None
 
     def on_click(self, event):
+        """Start drawing; save state for undo."""
         if event.inaxes != self.ax:
             return
         self.is_drawing = True
         self.prev_idx = int(event.xdata)
+        # Save the current envelopes in case we need to undo.
         self.last_state_pos = self.drawing_pos.copy()
         self.last_state_neg = self.drawing_neg.copy()
         self.update_drawing(event)
 
     def on_hover(self, event):
+        """Draw while mouse moves, if is_drawing is True."""
         if self.is_drawing and event.inaxes == self.ax:
             self.update_drawing(event)
 
     def on_release(self, event):
+        """Stop drawing."""
         self.is_drawing = False
         self.prev_idx = None
 
     def on_key_press(self, event):
+        """
+        Handle key events:
+          - 'r' -> Reset envelope
+          - 'u' -> Undo last drawing
+          - 'p' -> Preview the adjusted audio
+        """
         if event.key == 'r':
+            # Reset envelopes to zero.
             self.drawing_pos[:] = 0
             self.drawing_neg[:] = 0
             self.line_pos.set_data(np.arange(self.num_samples), self.drawing_pos)
             self.line_neg.set_data(np.arange(self.num_samples), self.drawing_neg)
             self.fig.canvas.draw()
             print("Envelope reset.")
+
         elif event.key == 'u':
+            # Undo: restore the last saved state.
             if self.last_state_pos is not None and self.last_state_neg is not None:
                 self.drawing_pos = self.last_state_pos.copy()
                 self.drawing_neg = self.last_state_neg.copy()
@@ -166,7 +130,9 @@ class IntegratedWaveformTool:
                 print("Undo last drawing.")
             else:
                 print("Nothing to undo.")
+
         elif event.key == 'p':
+            # Preview: apply the envelope, generate an audio array, and play it.
             print("Playing preview audio...")
             preview_audio = self.apply_drawing_to_waveform(play_only=True)
             sd.play(preview_audio, self.sample_rate)
@@ -176,11 +142,24 @@ class IntegratedWaveformTool:
             print("Preview finished. Continue drawing if you like.")
 
     def update_drawing(self, event):
+        """Update the drawn envelope based on the current mouse position."""
         idx = int(event.xdata)
-        if idx < 0 or idx >= self.num_samples or event.ydata is None:
+        if idx < 0 or idx >= self.num_samples:
             return
+        if event.ydata is None:
+            return
+
+        # Optionally clamp to [-1,1] to prevent amplitude blow-ups. (Uncomment if needed)
+        # amp = max(-1, min(1, event.ydata))
         amp = event.ydata
-        envelope = self.drawing_pos if amp >= 0 else self.drawing_neg
+
+        # Choose which envelope to update: above 0 -> drawing_pos, below 0 -> drawing_neg
+        if amp >= 0:
+            envelope = self.drawing_pos
+        else:
+            envelope = self.drawing_neg
+
+        # Linear interpolation between the previous index and the current one.
         if self.prev_idx is not None and idx != self.prev_idx:
             start_idx = self.prev_idx
             end_idx = idx
@@ -194,9 +173,14 @@ class IntegratedWaveformTool:
             envelope[start_idx:end_idx+1] = np.linspace(start_val, end_val, end_idx - start_idx + 1)
         else:
             envelope[idx] = amp
+
         self.prev_idx = idx
+
+        # Update the lines for partial redraw (blitting).
         self.line_pos.set_data(np.arange(self.num_samples), self.drawing_pos)
         self.line_neg.set_data(np.arange(self.num_samples), self.drawing_neg)
+
+        # Blitting logic: redraw only the changed parts.
         if self.background is None:
             self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
         else:
@@ -206,6 +190,7 @@ class IntegratedWaveformTool:
         self.fig.canvas.blit(self.ax.bbox)
 
     def save_drawing(self):
+        """Save the final envelope drawing as a PNG."""
         self.ax.set_xlim(*self.expected_xlim)
         self.ax.set_ylim(*self.expected_ylim)
         output_png = os.path.join(self.output_folder, f"future_{self.base_name}.png")
@@ -213,6 +198,7 @@ class IntegratedWaveformTool:
         print(f"Saved drawing as {output_png}")
 
     def save_envelope_data(self):
+        """Save the drawn envelope data to CSV and NumPy files."""
         output_csv = os.path.join(self.output_folder, f"future_{self.base_name}.csv")
         with open(output_csv, 'w', newline='') as file:
             writer = csv.writer(file)
@@ -220,85 +206,69 @@ class IntegratedWaveformTool:
             for i in range(self.num_samples):
                 writer.writerow([i, self.drawing_pos[i], self.drawing_neg[i]])
         print(f"Saved envelope CSV as {output_csv}")
+
         np.save(os.path.join(self.output_folder, f"{self.base_name}_pos.npy"), self.drawing_pos)
         np.save(os.path.join(self.output_folder, f"{self.base_name}_neg.npy"), self.drawing_neg)
         print("Saved envelope data as .npy files.")
 
     def apply_drawing_to_waveform(self, play_only=False):
+        """
+        Apply the drawn envelope using your original per-sample logic:
+          - If original sample > 0, use drawing_pos
+          - If original sample < 0, use drawing_neg
+          - If original sample == 0, keep it as is
+        """
         adjusted_audio_data = np.copy(self.audio_data)
         for i in range(len(adjusted_audio_data)):
             if adjusted_audio_data[i] > 0:
                 adjusted_audio_data[i] = self.drawing_pos[i]
             elif adjusted_audio_data[i] < 0:
                 adjusted_audio_data[i] = self.drawing_neg[i]
+            # else: zero remains zero
+
         if play_only:
+            # Return int16 array for playback preview.
             return (adjusted_audio_data * 32767).astype(np.int16)
+
+        # Otherwise, save the data.
         self.save_envelope_data()
+
+        # Write out the adjusted WAV file.
         output_wav = os.path.join(self.output_folder, f"future_{self.base_name}.wav")
         wavfile.write(output_wav, self.sample_rate, (adjusted_audio_data * 32767).astype(np.int16))
         print(f"Saved adjusted audio as {output_wav}")
-        
-        # Create comparison PNG (two subplots: original and adjusted).
+
+        # --- CHANGED: Save a second PNG for comparison of original vs. adjusted. ---
         fig2, ax2 = plt.subplots(2, 1, figsize=(10, 6))
-        fig2.patch.set_facecolor(self.bg_color)
-        for a in ax2:
-            a.set_facecolor(self.bg_color)
-            a.title.set_color("white")
-            a.xaxis.label.set_color("white")
-            a.yaxis.label.set_color("white")
-            a.tick_params(axis='x', colors='white')
-            a.tick_params(axis='y', colors='white')
-        ax2[0].plot(self.audio_data, color=self.pos_color)
+        ax2[0].plot(self.audio_data, color='blue')
         ax2[0].set_title('Original Audio Waveform')
-        ax2[1].plot(adjusted_audio_data, color=self.pos_color)
+        ax2[1].plot(adjusted_audio_data, color='green')
         ax2[1].set_title('Adjusted Audio Waveform')
         plt.tight_layout()
+
         comparison_png = os.path.join(self.output_folder, f"comparison_{self.base_name}.png")
-        fig2.savefig(comparison_png)
+        fig2.savefig(comparison_png)  # Save the comparison plot
         print(f"Saved comparison as {comparison_png}")
-        plt.close(fig2)
-        
-        # Create a new PNG with only the modified waveform.
-        fig3, ax3 = plt.subplots(figsize=(10, 4))
-        fig3.patch.set_facecolor(self.bg_color)
-        ax3.set_facecolor(self.bg_color)
-        ax3.plot(adjusted_audio_data, color=self.pos_color)
-        ax3.set_title('Modified Audio Waveform', color="white")
-        ax3.set_xlabel('Sample Index', color="white")
-        ax3.set_ylabel('Amplitude', color="white")
-        ax3.tick_params(axis='x', colors='white')
-        ax3.tick_params(axis='y', colors='white')
-        plt.tight_layout()
-        modified_wave_png = os.path.join(self.output_folder, f"modified_wave_{self.base_name}.png")
-        fig3.savefig(modified_wave_png)
-        print(f"Saved modified waveform as {modified_wave_png}")
-        plt.close(fig3)
         plt.show()
-        return adjusted_audio_data
+        # --------------------------------------------------------------------------
 
     def process_file(self):
+        """Run the interactive drawing session and finalize the audio after user closes the plot."""
         plt.show()
-        self.save_drawing()
-        self.apply_drawing_to_waveform()
+        self.save_drawing()          # Save the envelope drawing
+        self.apply_drawing_to_waveform()  # Save the comparison plot & adjusted WAV
 
 def process_file():
+    """Prompt for an audio file path, create the tool, run the drawing session."""
     audio_file = input("Enter the path to your audio file: ")
     if not os.path.exists(audio_file):
         print("File not found!")
         return
-    custom = input("Do you want to choose colors from a preset list? (y/n): ")
-    if custom.lower() == 'y':
-        bg_color = select_color("Select a background color:", "black")
-        pos_color = select_color("Select a positive envelope color:", "#39FF14")
-        neg_color = select_color("Select a negative envelope color:", "#39FF14")
-    else:
-        bg_color = "black"
-        pos_color = "#39FF14"
-        neg_color = "#39FF14"
-    tool = IntegratedWaveformTool(audio_file, pos_color=pos_color, neg_color=neg_color, bg_color=bg_color)
+    tool = IntegratedWaveformTool(audio_file)
     tool.process_file()
 
 def main():
+    """Main loop to process multiple files if desired."""
     while True:
         process_file()
         cont = input("Process another file? (y/n): ")
