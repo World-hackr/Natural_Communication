@@ -1,33 +1,44 @@
-# Integrated Waveform Envelope Tool
+# Envelope Drawing & Audio Modification Tool
 
-A Python-based tool for processing and modifying audio waveforms by drawing custom envelopes. This tool allows you to load a WAV file, interactively draw envelopes for the positive and negative portions of the waveform, and then apply these envelopes to adjust the audio. It generates several output files, including PNG images of the drawn envelope, a comparison between the original and modified waveforms, and the adjusted audio file. Additionally, it exports envelope data in CSV and NumPy formats.
+This Python tool allows you to interactively draw envelope curves over an audio waveform from a WAV file. With integrated color picking, you can customize the appearance of the drawing canvas and final outputs. Once you have drawn the envelope, the tool can preview the modified audio, save the envelope data as a CSV file, and output several images (including a final drawing, a natural language version, and a comparison of the original and modified waves) along with a modified audio WAV file.
 
 ## Features
 
-- **Interactive Envelope Drawing**: Use your mouse to draw custom envelopes over the waveform.
-- **Real-Time Audio Preview**: Preview the effect of your envelope drawing on the audio in real-time.
-- **Customizable Colors**: Choose preset color options for the background, positive envelope, and negative envelope for each output image.
-- **Multiple Outputs**:
-  - PNG of the drawn envelope.
-  - Comparison PNG (original vs. drawn envelope).
-  - PNG of the modified waveform.
-  - Adjusted WAV audio file.
-  - Envelope data as CSV and `.npy` files.
-- **Stereo-to-Mono Conversion & Normalization**: Automatically handles stereo audio by converting to mono and normalizing the waveform.
+- **Custom Color Picking:**  
+  Choose custom colors for the drawing canvas, positive envelope, and negative envelope using an interactive ANSI color swatch display.
+
+- **Interactive Drawing:**  
+  Draw envelope curves on the audio waveform using your mouse.  
+  - **Keyboard Commands:**  
+    - `p`: Preview the modified audio.
+    - `r`: Reset the envelope.
+    - `u`: Undo the last stroke.
+
+- **File Management:**  
+  - The input WAV file is copied to a new folder (named after the file, without its extension).
+  - The following outputs are saved in that folder:
+    - `final_drawing.png`: The canvas after the first color adjustment.
+    - `envelope.csv`: CSV data of the drawn envelope.
+    - A modified audio file (WAV) with the applied envelope.
+    - `natural_lang.png`: Image after a second round of color picking.
+    - `wave_comparison.png`: A side-by-side comparison image of the original and modified waveforms.
+
+- **Continuous Processing:**  
+  After finishing with one file, you are prompted whether you want to process another file.
 
 ## Requirements
 
 - Python 3.x
 - [NumPy](https://numpy.org/)
 - [Matplotlib](https://matplotlib.org/)
-- [SciPy](https://www.scipy.org/)
-- [SoundDevice](https://python-sounddevice.readthedocs.io/)
+- [SciPy](https://www.scipy.org/) (for WAV file I/O)
+- [sounddevice](https://python-sounddevice.readthedocs.io/) (for audio preview)
+- Standard libraries: `os`, `sys`, `shutil`, `csv`
 
 ## Installation
 
-1. **Clone the Repository**
+1. **Clone the Repository:**
 
    ```bash
-   git clone https://github.com/yourusername/integrated-waveform-envelope-tool.git
-   cd integrated-waveform-envelope-tool
-
+   git clone <repository-url>
+   cd <repository-directory>
