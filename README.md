@@ -1,119 +1,73 @@
-This repository provides a Python-based tool for:
+🍘Natural_Language.py
+Advanced  Wave Envelope Editor
+Table of Contents
+Section	Description
+Overview	High-level description of the tool
+Features	Key features summarized in tables
+Installation	How to install prerequisites and set up
+Usage	Step-by-step instructions with tables
+How It Works	Explanations for non-technical and technical users
+Sample Commit Message	A sample commit message for version control
+Overview
+This tool allows you to create or import a WAV file and interactively draw custom envelopes over its waveform. After editing, it exports three images:
 
-- **Generating** or **loading** a wave (custom or existing `.wav`).
-- **Drawing** an envelope on that wave (positive/negative) **without** accidental panning/zooming.
-- **Applying** color logic to produce three distinct output images:
-  - **final_drawing**  
-  - **natural_lang** (strict sign-based coloring, no color leaking)
-  - **wave_comparison** (original vs. modified wave)
+Final Drawing: A faithful capture of your drawing phase.
+Natural Language Visualization: A continuous, strictly sign‑colored waveform image.
+Wave Comparison: An overlay of the original and modified waveforms for easy comparison.
+The exported images are intended to exactly match what you see on the drawing window.
 
-## Table of Contents
+Features
+Feature	Description
+Custom Wave Generation	Generate a waveform using presets (sine, square, triangle, sawtooth) or manual input (frequency, samples per wavelength, periods).
+Existing File Import	Load an existing WAV file for processing.
+Interactive Envelope Drawing	Draw custom envelopes on the displayed waveform using your mouse, with preview, undo, and reset options.
+Color Customization	Select colors for the drawing canvas, positive envelope, and negative envelope through an interactive console-based color picker.
+Export Options	Export your work as three PNG images: final drawing, natural language visualization (strict sign‑colored), and wave comparison (overlay).
+Consistent Aspect Ratio	The natural_lang and wave_comparison images are exported with axis limits and aspect ratio set to match the interactive drawing window.
+Installation
+Step	Instructions
+Prerequisites	Python 3.x and the following packages: matplotlib, numpy, scipy, sounddevice.
+Installation	Use pip to install required packages:
+bash<br>pip install matplotlib numpy scipy sounddevice<br>
+Download	Clone or download the repository containing the code.
+Usage
+Wave Generation and Import
+Option	Description
+Custom Generation	Choose a preset (sine, square, triangle, sawtooth) or manually enter parameters to generate a new wave.
+Existing Import	Provide the path to an existing WAV file to load and process.
+Color Customization
+Component	Description
+Background Color	Sets the color of the drawing canvas.
+Positive Envelope	Sets the color for positive parts of the envelope.
+Negative Envelope	Sets the color for negative parts of the envelope.
+The color picker displays a table with color names, hex codes, and a swatch for easy selection.
 
-- [Features](#features)
-- [Usage](#usage)
-- [Technical Details](#technical-details)
-- [Space-Signal Context](#space-signal-context)
-- [License](#license)
+Interactive Envelope Drawing
+Key	Action
+p	Preview the modified audio.
+r	Reset the envelope (clear the current drawing).
+u	Undo the last drawn stroke.
+Export Phases
+Export Type	Description
+Final Drawing	Exports an image (final_drawing.png) exactly as seen during the drawing phase. (This export remains unchanged.)
+Natural Language	Exports a PNG (natural_lang.png) where the waveform is rendered using strict sign-based coloring.
+Wave Comparison	Exports a PNG (wave_comparison.png) overlaying the original and modified waveforms for comparison.
+Note: The natural_lang and wave_comparison exports include a reset of axis limits and aspect ratio to match the interactive window view.
 
----
-
-## Features
-
-1. **Custom Wave Generation**  
-   - Numeric presets (sine, square, triangle, sawtooth) or manual entry (frequency, samples-per-wavelength, periods).
-   - **User-defined filename** for the generated `.wav` (no more fixed `"my_custom_wave.wav"`).
-
-2. **No Panning**  
-   - We disable the default Matplotlib toolbar so you **only** draw your envelope.  
-   - Click-and-drag in the waveform window to modify positive or negative amplitude.
-
-3. **Sign-Based Coloring**  
-   - **natural_lang** subdivides each segment at zero crossings to ensure **strict** sign coloring:
-     - Values `< 0` → negative color
-     - Values `>= 0` → positive color
-     - Zero is considered part of the **positive** side
-   - No partial overlap or “leak” from negative to positive.
-
-4. **Independent Color Pickers**  
-   - Each output (`final_drawing.png`, `natural_lang.png`, `wave_comparison.png`) has **its own** color picker step.  
-   - Default negative color in **natural_lang** is set to **cyan** (`#00FFFF`) if you don’t pick custom.
-
-5. **Preview Audio**  
-   - Press **p** during drawing to hear how the modified envelope sounds.
-
-6. **Outputs**  
-   - A folder named after your wave file (e.g., `my_wave`) is created, containing:
-     - **final_drawing.png**  
-       Shows the user-drawn envelope on the original wave.
-     - **envelope.csv**  
-       Numeric data for positive and negative envelopes.
-     - **future_XXX.wav**  
-       The final, modified audio (where `XXX` is your original `.wav` name).
-     - **natural_lang.png**  
-       Strict sign-based coloring on a single continuous wave.
-     - **wave_comparison.png**  
-       One line for the original wave, one line for the modified wave, each in a single color.
-
----
-
-## Usage
-
-1. **Clone/Download** this repository.
-2. **Install** dependencies:
-   ```bash
-   pip install matplotlib numpy scipy sounddevice
-Run the main script:
-bash
-Copy
-Edit
-python 🍘Natural_Language.py
-Choose:
-1 to use an existing .wav file
-2 to generate a custom wave
-If custom, pick a numeric preset or go manual.
-Enter a custom output name (e.g. my_custom_signal.wav).
-Drawing:
-A Matplotlib window appears, no panning or zooming.
-Click and drag in the upper half → positive envelope, lower half → negative envelope.
-Keyboard shortcuts:
-p = preview (listen to the drawn envelope)
-r = reset (erase envelope)
-u = undo last stroke
-Color Pickers:
-For each output file, you can pick custom or default background/positive/negative colors from a vibrant palette.
-final_drawing → shows your actual envelope on the wave
-natural_lang → single continuous wave with sign-based color logic
-wave_comparison → original wave vs. modified wave, each in a single color
-Outputs:
-A new folder named after your .wav file is created.
-Inside, you’ll find .png images and your future_XXX.wav.
-Technical Details
-Zero-Crossing Subdivision
-
-In the strict_sign_subdivision() function, each segment [i, i+1] is subdivided if the wave crosses zero between samples.
-Crossing from negative → positive → color the crossing as positive.
-Crossing from positive → negative → color the crossing as negative.
-Ensures each sub-segment is purely negative or purely positive.
-No Toolbar
-
-We do:
-python
-Copy
-Edit
-import matplotlib
-matplotlib.rcParams['toolbar'] = 'None'
-so you cannot accidentally pan or zoom during the drawing phase.
-Sound Playback
-
-We use sounddevice to preview the envelope. If you face issues, ensure your audio device is recognized by sounddevice.
-Future_XXX.wav
-
-The final, modified wave after applying your drawn envelope is stored as future_<originalName>.wav.
-Space-Signal Context
-You can potentially use this tool to shape a wave for space transmission. For example:
-
-Generate a custom wave that encodes data or patterns.
-Modify its envelope with this drawing interface to create unique amplitude structures.
-Export the .wav and feed it into radio hardware or additional software that broadcasts signals into space.
-While this script doesn’t handle actual RF modulation or cosmic distances, it’s a starting point for conceptualizing and shaping waveforms intended for interstellar messaging or other experiments.
-
+How It Works
+Layman Explanation
+Concept	Explanation
+Input Wave	You either create a new sound wave or load an existing one, which is displayed as a wavy line.
+Drawing on the Wave	You use your mouse to "draw" on the wave—like marking on a paper—to change its shape.
+Preview and Adjust	You can preview your changes, undo mistakes, or reset the drawing if needed.
+Export	When done, the tool saves images that look exactly like your drawing window: one is a final capture, another shows a smooth, colored continuous line, and the third compares the original and modified waves side by side.
+Technical Explanation
+Component	Technical Details
+Wave Generation/Import	Uses NumPy and SciPy to generate or load a WAV file and normalize its waveform.
+Color Picker	A console-based color picker prints color options (with ANSI swatches) and lets you select custom colors for the drawing canvas and envelopes.
+Interactive Drawing	The EnvelopePlot class handles mouse events (press, move, release) to allow real-time envelope drawing with a blit-based update for performance.
+Export Routines	Three separate export phases produce PNG images:
+- Final Drawing: a direct capture of the drawing phase.
+- Natural Language Visualization: uses a strict sign‑subdivision algorithm to create a continuous colored line.
+- Wave Comparison: overlays the original and modified waveforms.
+Axis limits and aspect ratios are reset for the latter two exports to match the interactive view.

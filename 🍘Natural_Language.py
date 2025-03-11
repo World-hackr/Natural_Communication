@@ -13,6 +13,7 @@ import sounddevice as sd
 from scipy import signal
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.widgets import Slider
 
 ##############################################################################
 # 1) CUSTOM WAVE GENERATION WITH NUMERIC PRESETS
@@ -25,7 +26,6 @@ def generate_custom_wave():
     print("  3) Triangle wave (freq=100, spw=200, periods=5)")
     print("  4) Sawtooth wave (freq=50,  spw=120, periods=15)")
     print("  5) Manual entry")
-
     choice = input("Enter 1-5: ").strip()
 
     wave_type = "sine"
@@ -34,10 +34,6 @@ def generate_custom_wave():
     periods = 10
 
     if choice == "1":
-        wave_type = "sine"
-        freq = 440
-        spw  = 100
-        periods = 10
         print("\nPreset 1: Sine wave (freq=440, spw=100, periods=10)")
     elif choice == "2":
         wave_type = "square"
@@ -70,7 +66,6 @@ def generate_custom_wave():
             wave_type = "sawtooth"
         else:
             wave_type = "sine"
-
         try:
             freq = float(input("Enter frequency in Hz (e.g. 440): "))
             spw  = int(input("Enter samples per wavelength (e.g. 100): "))
@@ -96,11 +91,10 @@ def generate_custom_wave():
     elif wave_type == "sawtooth":
         wave = signal.sawtooth(2*np.pi*freq*t)
     else:
-        wave = np.sin(2*np.pi*freq*t)  # default sine
+        wave = np.sin(2*np.pi*freq*t)
 
     wave /= np.max(np.abs(wave))
 
-    # === ASK USER FOR CUSTOM OUTPUT FILENAME ===
     out_file = input("Enter name for custom wave file (e.g. my_custom_signal.wav): ").strip()
     if not out_file:
         out_file = "my_custom_wave.wav"
@@ -211,7 +205,7 @@ def run_color_picker(default_bg, default_pos, default_neg):
         "Neon Coral": "#FF6EC7",
         "Luminous Lime": "#BFFF00"
     }
-
+    
     use_custom = input("Use custom colors? (y/n): ").lower() == 'y'
     if not use_custom:
         return default_bg, default_pos, default_neg
@@ -231,14 +225,14 @@ def run_color_picker(default_bg, default_pos, default_neg):
     return bg_pick, pos_pick, neg_pick
 
 ##############################################################################
-# 3) strict_sign_subdivision => subdivide each segment at zero crossing
+# 3) STRICT SIGN SUBDIVISION HELPERS
 ##############################################################################
 def strict_sign_subdivision(x, y):
     """
-    Subdivide each segment so that no sign 'bleeds' into the other.
-    Negative color for y<0, positive color for y>=0, zero => y>=0 (positive).
+    Subdivide each segment so that no sign bleeds into the other.
+    Negative color for y<0, positive color for y>=0, zero => y>=0 (color=1).
     If crossing from negative->positive => crossing color=1,
-    if crossing from positive->negative => crossing color=0.
+    If crossing from positive->negative => crossing color=0.
     """
     new_x = []
     new_y = []
@@ -249,7 +243,6 @@ def strict_sign_subdivision(x, y):
         return np.array([]), np.array([]), np.array([])
 
     def sign_color(val):
-        # wave_value < 0 => 0, wave_value >= 0 => 1
         return 0 if val < 0 else 1
 
     for i in range(n - 1):
@@ -260,23 +253,15 @@ def strict_sign_subdivision(x, y):
         new_y.append(yi)
         color_val.append(sign_color(yi))
 
-        # check crossing
         if (yi < 0 and yip1 >= 0) or (yi >= 0 and yip1 < 0):
-            # there's a zero crossing between i and i+1
             dy = yip1 - yi
-            if abs(dy) > 1e-12:
-                t = (0 - yi)/dy
-            else:
-                t = 0.5
+            t = (0 - yi)/dy if abs(dy) > 1e-12 else 0.5
             x_cross = xi + t*(xip1 - xi)
-
-            # wave crosses zero => color depends on direction
             crossing_color = 1 if (yi < 0 and yip1 >= 0) else 0
             new_x.append(x_cross)
             new_y.append(0.0)
             color_val.append(crossing_color)
 
-    # last point
     new_x.append(x[-1])
     new_y.append(y[-1])
     color_val.append(sign_color(y[-1]))
@@ -284,53 +269,24 @@ def strict_sign_subdivision(x, y):
     return np.array(new_x), np.array(new_y), np.array(color_val)
 
 def plot_strict_sign_colored_line(ax, xdata, ydata, neg_color, pos_color, linewidth=2, label="Modified Wave"):
-    """
-    Subdivide each segment so no sign color leaks into the other.
-    crossing from negative->positive => crossing color=1
-    crossing from positive->negative => crossing color=0
-    Zero => color=1 (positive).
-    """
     sx, sy, cvals = strict_sign_subdivision(xdata, ydata)
-
-    # Build segments
     points = np.array([sx, sy]).T.reshape(-1, 1, 2)
     segments = np.concatenate([points[:-1], points[1:]], axis=1)
-
-    # 2-color colormap
     cmap = ListedColormap([neg_color, pos_color])
-    # boundaries => [-0.5,0.5,1.5]
     norm = BoundaryNorm([-0.5, 0.5, 1.5], cmap.N)
-
     lc = LineCollection(segments, cmap=cmap, norm=norm)
-    # color each segment by cvals[i], i in [0..len(segments)-1]
-    # We'll just use cvals[:-1]
     lc.set_array(cvals[:-1])
     lc.set_linewidth(linewidth)
-
     ax.add_collection(lc)
     ax.set_xlim(sx.min(), sx.max())
     miny, maxy = sy.min(), sy.max()
-    pad = 0.05*(maxy - miny if (maxy - miny) != 0 else 1)
+    pad = 0.05 * (maxy - miny if (maxy - miny) != 0 else 1)
     ax.set_ylim(miny - pad, maxy + pad)
-
-    # For a legend, create a dummy line
     dummy_line = ax.plot([], [], color='none', label=label)[0]
     return lc, dummy_line
 
 ##############################################################################
-# 4) get_modified_wave
-##############################################################################
-def get_modified_wave(ep):
-    adjusted = np.copy(ep.audio_data)
-    for i in range(len(adjusted)):
-        if adjusted[i] > 0:
-            adjusted[i] = ep.drawing_pos[i] + ep.offset
-        elif adjusted[i] < 0:
-            adjusted[i] = ep.drawing_neg[i] + ep.offset
-    return adjusted
-
-##############################################################################
-# 5) EnvelopePlot (for the drawing phase)
+# 4) EnvelopePlot Class (Original Drawing System)
 ##############################################################################
 class EnvelopePlot:
     def __init__(self, wav_file, ax, bg_color, pos_color, neg_color):
@@ -352,12 +308,9 @@ class EnvelopePlot:
         self.num_points = len(self.audio_data)
         self.max_amp = np.max(np.abs(self.audio_data))
 
-        self.faint_line, = self.ax.plot(
-            self.audio_data,
-            color=self.canvas_pos_color,
-            alpha=0.15,
-            lw=1
-        )
+        self.faint_line, = self.ax.plot(self.audio_data,
+                                        color=self.canvas_pos_color,
+                                        alpha=0.15, lw=1)
 
         self.drawing_pos = np.zeros(self.num_points)
         self.drawing_neg = np.zeros(self.num_points)
@@ -380,6 +333,8 @@ class EnvelopePlot:
         self.ax.text(10, self.max_amp - margin,
                      base_name, fontsize=9, color='gray', alpha=0.8,
                      verticalalignment='top')
+
+        self.ax.set_aspect('auto')
 
         self.is_drawing = False
         self.prev_idx = None
@@ -479,33 +434,35 @@ class EnvelopePlot:
                        final_wave_alpha=0.4, orig_alpha=0.6, mod_alpha=0.8):
         self.ax.set_facecolor(bg_color)
         self.fig.patch.set_facecolor(bg_color)
-
         if self.faint_line is not None:
             self.faint_line.set_color(pos_color)
             self.faint_line.set_alpha(faint_alpha)
-
         if self.line_pos is not None:
             self.line_pos.set_color(pos_color)
-
         if self.line_neg is not None:
             self.line_neg.set_color(neg_color)
-
         if self.final_line is not None:
             self.final_line.set_color(final_wave_color)
             self.final_line.set_alpha(final_wave_alpha)
-
         if self.comparison_line_orig is not None:
             self.comparison_line_orig.set_color(neg_color)
             self.comparison_line_orig.set_alpha(orig_alpha)
-
         if self.comparison_line_mod is not None:
             self.comparison_line_mod.set_color(pos_color)
             self.comparison_line_mod.set_alpha(mod_alpha)
-
         self.ax.figure.canvas.draw_idle()
 
+def get_modified_wave(ep):
+    adjusted = np.copy(ep.audio_data)
+    for i in range(len(adjusted)):
+        if adjusted[i] > 0:
+            adjusted[i] = ep.drawing_pos[i] + ep.offset
+        elif adjusted[i] < 0:
+            adjusted[i] = ep.drawing_neg[i] + ep.offset
+    return adjusted
+
 ##############################################################################
-# 7) MAIN
+# 7) MAIN (Single-File Processing)
 ##############################################################################
 def process_single_file():
     print("\nDo you want to:")
@@ -603,6 +560,7 @@ def process_single_file():
     ep.reapply_colors(f_bg, f_pos, f_neg)
 
     final_path = os.path.join(new_folder, "final_drawing.png")
+    # final_drawing remains unchanged
     fig.savefig(final_path)
     print(f"final_drawing.png saved to {final_path}")
 
@@ -619,7 +577,7 @@ def process_single_file():
     wavfile.write(wav_path, ep.sample_rate, (mod_wave * 32767).astype(np.int16))
     print(f"Modified audio saved to {wav_path}")
 
-    # =========== natural_lang => sign-based coloring with no leaks
+    # =========== natural_lang => strict sign-based coloring =============
     if ep.faint_line is not None:
         ep.faint_line.remove()
         ep.faint_line = None
@@ -635,7 +593,6 @@ def process_single_file():
 
     print("\n=== natural_lang Color Picker ===")
     n_bg, n_pos, n_neg = run_color_picker("#000000", "#00FF00", "#00FFFF")
-
     ep.reapply_colors(n_bg, n_pos, n_neg)
 
     for line in ax.lines[:]:
@@ -644,7 +601,6 @@ def process_single_file():
     xdata = np.arange(len(mod_wave))
     ydata = mod_wave
 
-    # Strict sign-based coloring: subdivide segments at zero crossing
     lc, dummy_line = plot_strict_sign_colored_line(
         ax, xdata, ydata,
         neg_color=n_neg,
@@ -654,12 +610,17 @@ def process_single_file():
     )
 
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
-
+    # Reset axis limits to match the drawing phase
+    ax.set_xlim(0, ep.num_points)
+    margin = 0.1 * ep.max_amp
+    L = ep.max_amp + margin
+    ax.set_ylim(-L, L)
+    ax.set_aspect('auto')
     nat_path = os.path.join(new_folder, "natural_lang.png")
     fig.savefig(nat_path)
     print(f"natural_lang.png saved to {nat_path}")
 
-    # =========== wave_comparison => single line for original & mod
+    # =========== wave_comparison => original vs modified =============
     for line in ax.lines[:]:
         line.remove()
 
@@ -670,17 +631,16 @@ def process_single_file():
     print("\n=== wave_comparison Color Picker ===")
     c_bg, c_pos, c_neg = run_color_picker("#000000", "#00FF00", "#FF0000")
     ep.reapply_colors(c_bg, c_pos, c_neg)
-
     ep.comparison_line_orig, = ax.plot(ep.audio_data, lw=2, label='Original Wave')
-    ep.comparison_line_mod,  = ax.plot(mod_wave,     lw=2, label='Modified Wave')
+    ep.comparison_line_mod,  = ax.plot(mod_wave, lw=2, label='Modified Wave')
     ep.reapply_colors(c_bg, c_pos, c_neg, final_wave_color=c_pos)
-
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
-
+    ax.set_xlim(0, ep.num_points)
+    ax.set_ylim(-L, L)
+    ax.set_aspect('auto')
     cmp_path = os.path.join(new_folder, "wave_comparison.png")
     fig.savefig(cmp_path)
     print(f"wave_comparison.png saved to {cmp_path}")
-
     plt.close()
 
 def main():
