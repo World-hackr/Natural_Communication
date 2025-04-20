@@ -212,15 +212,15 @@ def run_color_picker(default_bg, default_pos, default_neg):
 
     print("\nBackground Colors:")
     bg_vals = show_color_options(background_options, "Pick a background color:")
-    bg_pick = choose_color(bg_vals, "Enter number for background: ")
+    bg_pick = choose_color(bg_vals, "Enter number for background:")
 
     print("\nPositive Envelope Colors:")
     pos_vals = show_color_options(positive_options, "Pick a positive color:")
-    pos_pick = choose_color(pos_vals, "Enter number for positive: ")
+    pos_pick = choose_color(pos_vals, "Enter number for positive:")
 
     print("\nNegative Envelope Colors:")
     neg_vals = show_color_options(negative_options, "Pick a negative color:")
-    neg_pick = choose_color(neg_vals, "Enter number for negative: ")
+    neg_pick = choose_color(neg_vals, "Enter number for negative:")
 
     return bg_pick, pos_pick, neg_pick
 
@@ -228,12 +228,6 @@ def run_color_picker(default_bg, default_pos, default_neg):
 # 3) STRICT SIGN SUBDIVISION HELPERS
 ##############################################################################
 def strict_sign_subdivision(x, y):
-    """
-    Subdivide each segment so that no sign bleeds into the other.
-    Negative color for y<0, positive color for y>=0, zero => y>=0 (color=1).
-    If crossing from negative->positive => crossing color=1,
-    If crossing from positive->negative => crossing color=0.
-    """
     new_x = []
     new_y = []
     color_val = []
@@ -311,10 +305,8 @@ class EnvelopePlot:
         self.faint_line, = self.ax.plot(self.audio_data,
                                         color=self.canvas_pos_color,
                                         alpha=0.15, lw=1)
-
         self.drawing_pos = np.zeros(self.num_points)
         self.drawing_neg = np.zeros(self.num_points)
-
         self.line_pos, = self.ax.plot([], [], color=self.canvas_pos_color, lw=2, label='Positive')
         self.line_neg, = self.ax.plot([], [], color=self.canvas_neg_color, lw=2, label='Negative')
 
@@ -333,7 +325,6 @@ class EnvelopePlot:
         self.ax.text(10, self.max_amp - margin,
                      base_name, fontsize=9, color='gray', alpha=0.8,
                      verticalalignment='top')
-
         self.ax.set_aspect('auto')
 
         self.is_drawing = False
@@ -379,18 +370,13 @@ class EnvelopePlot:
             else:
                 start_val = envelope[self.prev_idx]
                 end_val = amp
-            envelope[start_idx:end_idx+1] = np.linspace(
-                start_val, end_val,
-                end_idx - start_idx + 1
-            )
+            envelope[start_idx:end_idx+1] = np.linspace(start_val, end_val, end_idx - start_idx + 1)
         else:
             envelope[idx] = amp
         self.prev_idx = idx
 
-        self.line_pos.set_data(np.arange(self.num_points),
-                               self.drawing_pos + self.offset)
-        self.line_neg.set_data(np.arange(self.num_points),
-                               self.drawing_neg + self.offset)
+        self.line_pos.set_data(np.arange(self.num_points), self.drawing_pos + self.offset)
+        self.line_neg.set_data(np.arange(self.num_points), self.drawing_neg + self.offset)
 
         if self.background is None:
             self.background = self.ax.figure.canvas.copy_from_bbox(self.ax.bbox)
@@ -412,10 +398,8 @@ class EnvelopePlot:
         self.redraw_lines()
 
     def redraw_lines(self):
-        self.line_pos.set_data(np.arange(self.num_points),
-                               self.drawing_pos + self.offset)
-        self.line_neg.set_data(np.arange(self.num_points),
-                               self.drawing_neg + self.offset)
+        self.line_pos.set_data(np.arange(self.num_points), self.drawing_pos + self.offset)
+        self.line_neg.set_data(np.arange(self.num_points), self.drawing_neg + self.offset)
         self.ax.figure.canvas.draw_idle()
 
     def preview_envelope(self):
@@ -560,9 +544,19 @@ def process_single_file():
     ep.reapply_colors(f_bg, f_pos, f_neg)
 
     final_path = os.path.join(new_folder, "final_drawing.png")
-    # final_drawing remains unchanged
     fig.savefig(final_path)
     print(f"final_drawing.png saved to {final_path}")
+
+    # Save clean SVG (wave only)
+    final_svg_path = os.path.join(new_folder, "final_drawing.svg")
+    ax.set_axis_off()
+    fig.savefig(final_svg_path,
+                format='svg',
+                transparent=True,
+                bbox_inches='tight',
+                pad_inches=0)
+    ax.set_axis_on()
+    print(f"final_drawing.svg saved to {final_svg_path}")
 
     csv_path = os.path.join(new_folder, "envelope.csv")
     with open(csv_path, "w", newline="") as f_:
@@ -573,9 +567,11 @@ def process_single_file():
     print(f"Envelope data saved to {csv_path}")
 
     mod_wave = get_modified_wave(ep)
-    wav_path = os.path.join(new_folder, f"future_{os.path.basename(ep.wav_file)}")
-    wavfile.write(wav_path, ep.sample_rate, (mod_wave * 32767).astype(np.int16))
-    print(f"Modified audio saved to {wav_path}")
+
+    # ← NEW: write modified waveform to .wav
+    wav_out = os.path.join(new_folder, "Natural_Audio_Original.wav")
+    wavfile.write(wav_out, ep.sample_rate, (mod_wave * 32767).astype(np.int16))
+    print(f"Modified waveform saved to {wav_out}")
 
     # =========== natural_lang => strict sign-based coloring =============
     if ep.faint_line is not None:
@@ -610,15 +606,26 @@ def process_single_file():
     )
 
     ax.legend(loc='upper right').get_frame().set_alpha(0.5)
-    # Reset axis limits to match the drawing phase
     ax.set_xlim(0, ep.num_points)
     margin = 0.1 * ep.max_amp
     L = ep.max_amp + margin
     ax.set_ylim(-L, L)
     ax.set_aspect('auto')
+
     nat_path = os.path.join(new_folder, "natural_lang.png")
     fig.savefig(nat_path)
     print(f"natural_lang.png saved to {nat_path}")
+
+    # Save clean SVG (wave only)
+    nat_svg_path = os.path.join(new_folder, "natural_lang.svg")
+    ax.set_axis_off()
+    fig.savefig(nat_svg_path,
+                format='svg',
+                transparent=True,
+                bbox_inches='tight',
+                pad_inches=0)
+    ax.set_axis_on()
+    print(f"natural_lang.svg saved to {nat_svg_path}")
 
     # =========== wave_comparison => original vs modified =============
     for line in ax.lines[:]:
@@ -638,9 +645,22 @@ def process_single_file():
     ax.set_xlim(0, ep.num_points)
     ax.set_ylim(-L, L)
     ax.set_aspect('auto')
+
     cmp_path = os.path.join(new_folder, "wave_comparison.png")
     fig.savefig(cmp_path)
     print(f"wave_comparison.png saved to {cmp_path}")
+
+    # Save clean SVG (wave only)
+    cmp_svg_path = os.path.join(new_folder, "wave_comparison.svg")
+    ax.set_axis_off()
+    fig.savefig(cmp_svg_path,
+                format='svg',
+                transparent=True,
+                bbox_inches='tight',
+                pad_inches=0)
+    ax.set_axis_on()
+    print(f"wave_comparison.svg saved to {cmp_svg_path}")
+
     plt.close()
 
 def main():

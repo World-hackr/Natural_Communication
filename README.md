@@ -1,73 +1,72 @@
-🍘Natural_Language.py
-Advanced  Wave Envelope Editor
-Table of Contents
-Section	Description
-Overview	High-level description of the tool
-Features	Key features summarized in tables
-Installation	How to install prerequisites and set up
-Usage	Step-by-step instructions with tables
-How It Works	Explanations for non-technical and technical users
-Sample Commit Message	A sample commit message for version control
-Overview
-This tool allows you to create or import a WAV file and interactively draw custom envelopes over its waveform. After editing, it exports three images:
+This project processes audio files (e.g., WAV, MP3) to generate corresponding visual representations. For each audio file, it produces:​
 
-Final Drawing: A faithful capture of your drawing phase.
-Natural Language Visualization: A continuous, strictly sign‑colored waveform image.
-Wave Comparison: An overlay of the original and modified waveforms for easy comparison.
-The exported images are intended to exactly match what you see on the drawing window.
+A PNG image visualizing the audio waveform.
+
+An SVG file containing only the plot elements, excluding additional components like message number lines.​
+
+Additionally, the project can transform audio waveforms into creative shapes, such as animals, providing a unique and engaging way to visualize sound.​
 
 Features
-Feature	Description
-Custom Wave Generation	Generate a waveform using presets (sine, square, triangle, sawtooth) or manual input (frequency, samples per wavelength, periods).
-Existing File Import	Load an existing WAV file for processing.
-Interactive Envelope Drawing	Draw custom envelopes on the displayed waveform using your mouse, with preview, undo, and reset options.
-Color Customization	Select colors for the drawing canvas, positive envelope, and negative envelope through an interactive console-based color picker.
-Export Options	Export your work as three PNG images: final drawing, natural language visualization (strict sign‑colored), and wave comparison (overlay).
-Consistent Aspect Ratio	The natural_lang and wave_comparison images are exported with axis limits and aspect ratio set to match the interactive drawing window.
+Automated SVG Generation: For every audio file processed, an SVG file is generated containing only the plot, ensuring a clean and scalable vector graphic.
+
+Creative Waveform Visualization: Transform audio waveforms into artistic shapes, such as animals, enhancing the visual appeal of the representations.
+
+Seamless Integration: The SVG generation function integrates smoothly with the existing codebase without altering other functionalities.​
+
 Installation
-Step	Instructions
-Prerequisites	Python 3.x and the following packages: matplotlib, numpy, scipy, sounddevice.
-Installation	Use pip to install required packages:
-bash<br>pip install matplotlib numpy scipy sounddevice<br>
-Download	Clone or download the repository containing the code.
+Ensure you have the following prerequisites installed:​
+Python Tutorials – Real Python
+
+Python 3.x
+
+Required Python libraries:
+
+numpy
+
+matplotlib
+
+librosa
+
+svgwrite​
+GitHub
++1
+Analytics India Magazine
++1
+Python Tutorials – Real Python
++1
+LearnPython
++1
+ResearchGate
+
+Install dependencies:​
+
+bash
+Copy
+Edit
+pip install -r requirements.txt
 Usage
-Wave Generation and Import
-Option	Description
-Custom Generation	Choose a preset (sine, square, triangle, sawtooth) or manually enter parameters to generate a new wave.
-Existing Import	Provide the path to an existing WAV file to load and process.
-Color Customization
-Component	Description
-Background Color	Sets the color of the drawing canvas.
-Positive Envelope	Sets the color for positive parts of the envelope.
-Negative Envelope	Sets the color for negative parts of the envelope.
-The color picker displays a table with color names, hex codes, and a swatch for easy selection.
+To process audio files and generate corresponding PNG and SVG files:​
 
-Interactive Envelope Drawing
-Key	Action
-p	Preview the modified audio.
-r	Reset the envelope (clear the current drawing).
-u	Undo the last drawn stroke.
-Export Phases
-Export Type	Description
-Final Drawing	Exports an image (final_drawing.png) exactly as seen during the drawing phase. (This export remains unchanged.)
-Natural Language	Exports a PNG (natural_lang.png) where the waveform is rendered using strict sign-based coloring.
-Wave Comparison	Exports a PNG (wave_comparison.png) overlaying the original and modified waveforms for comparison.
-Note: The natural_lang and wave_comparison exports include a reset of axis limits and aspect ratio to match the interactive window view.
+bash
+Copy
+Edit
+python your_script.py
+Ensure that your audio files are located in the appropriate directory as expected by the script.​
 
-How It Works
-Layman Explanation
-Concept	Explanation
-Input Wave	You either create a new sound wave or load an existing one, which is displayed as a wavy line.
-Drawing on the Wave	You use your mouse to "draw" on the wave—like marking on a paper—to change its shape.
-Preview and Adjust	You can preview your changes, undo mistakes, or reset the drawing if needed.
-Export	When done, the tool saves images that look exactly like your drawing window: one is a final capture, another shows a smooth, colored continuous line, and the third compares the original and modified waves side by side.
-Technical Explanation
-Component	Technical Details
-Wave Generation/Import	Uses NumPy and SciPy to generate or load a WAV file and normalize its waveform.
-Color Picker	A console-based color picker prints color options (with ANSI swatches) and lets you select custom colors for the drawing canvas and envelopes.
-Interactive Drawing	The EnvelopePlot class handles mouse events (press, move, release) to allow real-time envelope drawing with a blit-based update for performance.
-Export Routines	Three separate export phases produce PNG images:
-- Final Drawing: a direct capture of the drawing phase.
-- Natural Language Visualization: uses a strict sign‑subdivision algorithm to create a continuous colored line.
-- Wave Comparison: overlays the original and modified waveforms.
-Axis limits and aspect ratios are reset for the latter two exports to match the interactive view.
+Functionality
+The script includes functions that:​
+
+Iterate through audio files in the specified directory.
+
+Extract the waveform data from each audio file.
+
+Generate a PNG image visualizing the waveform.
+
+Generate an SVG file containing only the plot, excluding other elements like message number lines.
+
+Transform the waveform into creative shapes, such as animals, for enhanced visualization.​
+
+These functions are designed to be modular and do not interfere with other parts of the codebase.​
+
+Creative Visualizations
+The project leverages audio processing and visualization libraries to transform standard waveforms into artistic representations. For instance, by analyzing the frequency and amplitude of the audio, the waveform can be morphed into shapes resembling animals or other objects, providing a unique perspective on the sound data.
